@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import {
   collection,
   query,
@@ -41,7 +41,17 @@ function docToSession(id: string, data: Record<string, unknown>): StocktakingSes
   };
 }
 
-export function useStocktaking() {
+type StocktakingContextType = {
+  sessions: StocktakingSession[];
+  loading: boolean;
+  createSession: (data: Pick<StocktakingSession, "scope" | "targetCategory" | "startedBy" | "note">) => Promise<string>;
+  addScannedItem: (sessionId: string, item: ScannedItem) => Promise<void>;
+  closeSession: (sessionId: string, report: StocktakingReport) => Promise<void>;
+};
+
+const StocktakingContext = createContext<StocktakingContextType | undefined>(undefined);
+
+export function StocktakingProvider({ children }: { children: ReactNode }) {
   const { isGuest } = useAuth();
   const [sessions, setSessions] = useState<StocktakingSession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,14 +143,17 @@ export function useStocktaking() {
     });
   };
 
-  const getSession = async (id: string): Promise<StocktakingSession | null> => {
-    if (isGuest) {
-      return sessions.find((s) => s.id === id) ?? null;
-    }
-    const snap = await getDoc(doc(db, "stocktaking_sessions", id));
-    if (!snap.exists()) return null;
-    return docToSession(snap.id, snap.data() as Record<string, unknown>);
-  };
+  return (
+    <StocktakingContext.Provider value={{ sessions, loading, createSession, addScannedItem, closeSession }}>
+      {children}
+    </StocktakingContext.Provider>
+  );
+}
 
-  return { sessions, loading, createSession, addScannedItem, closeSession, getSession };
+export function useStocktaking(): StocktakingContextType {
+  const context = useContext(StocktakingContext);
+  if (context === undefined) {
+    throw new Error("useStocktaking must be used within a StocktakingProvider");
+  }
+  return context;
 }

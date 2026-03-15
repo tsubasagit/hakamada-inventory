@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, Button, Input, Spinner, Badge } from "@/components/ui";
 import { useToast } from "@/components/ui/Toast";
@@ -8,7 +8,7 @@ import { StocktakingStatusBadge } from "@/components/stocktaking/StocktakingStat
 import { useStocktaking } from "@/hooks/useStocktaking";
 import { useItems } from "@/hooks/useItems";
 import { useAuth } from "@/hooks/useAuth";
-import { StocktakingSession, StocktakingReport, Item } from "@/types";
+import { StocktakingReport } from "@/types";
 import { STOCKTAKING_SCOPE_LABELS } from "@/constants/statuses";
 import { CATEGORY_LABELS } from "@/constants/categories";
 import { formatDateTime } from "@/utils/date";
@@ -19,29 +19,16 @@ export function StocktakingDetailClient() {
   const params = useParams();
   const router = useRouter();
   const toast = useToast();
-  const { getSession, addScannedItem, closeSession, sessions } = useStocktaking();
+  const { addScannedItem, closeSession, sessions, loading: sessionsLoading } = useStocktaking();
   const { items } = useItems();
   const { profile } = useAuth();
 
-  const [session, setSession] = useState<StocktakingSession | null>(null);
-  const [loading, setLoading] = useState(true);
   const [barcodeInput, setBarcodeInput] = useState("");
   const [closing, setClosing] = useState(false);
 
   const id = params.id as string;
-
-  useEffect(() => {
-    const found = sessions.find((s) => s.id === id);
-    if (found) {
-      setSession(found);
-      setLoading(false);
-    } else {
-      getSession(id).then((s) => {
-        setSession(s);
-        setLoading(false);
-      });
-    }
-  }, [id, sessions, getSession]);
+  const session = useMemo(() => sessions.find((s) => s.id === id) ?? null, [sessions, id]);
+  const loading = sessionsLoading;
 
   const targetItems = useMemo(() => {
     if (!session) return [];
